@@ -23,6 +23,7 @@
 
   let two: Two;
   let twoElement: HTMLDivElement;
+  let resizeTrigger = 0; // Used to trigger reactive updates on window resize
 
   let pointRadius = 1.15;
   let lineWidth = 0.57;
@@ -52,7 +53,8 @@
   $: x = d3
     .scaleLinear()
     .domain([0, 144])
-    .range([0, twoElement?.clientWidth ?? 144]);
+    .range([0, twoElement?.clientWidth ?? 144]),
+    resizeTrigger; // Depend on resizeTrigger to update on window resize
 
   /**
    * Converter for Y axis from inches to pixels.
@@ -60,7 +62,8 @@
   $: y = d3
     .scaleLinear()
     .domain([0, 144])
-    .range([twoElement?.clientHeight ?? 144, 0]);
+    .range([twoElement?.clientHeight ?? 144, 0]),
+    resizeTrigger; // Depend on resizeTrigger to update on window resize
 
   let lineGroup = new Two.Group();
   lineGroup.id = "line-group";
@@ -668,6 +671,7 @@
     const handleResize = () => {
       if (two) {
         two.fit();
+        resizeTrigger++; // Trigger reactive updates
       }
     };
     
