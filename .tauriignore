@@ -1,0 +1,7 @@
+# Tauri ignore file
+node_modules
+.git
+.github
+.vscode
+src
+*.md

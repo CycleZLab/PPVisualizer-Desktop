@@ -8,7 +8,6 @@
   import Navbar from "./lib/Navbar.svelte";
   import MathTools from "./lib/MathTools.svelte";
   import _ from "lodash";
-  import { Analytics } from "@vercel/analytics/next"
   import {
     easeInOutQuad,
     getCurvePoint,
@@ -19,6 +18,8 @@
     shortestRotation,
   } from "./utils";
   import hotkeys from 'hotkeys-js';
+  import { save, open } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile, readTextFile, readFile } from '@tauri-apps/plugin-fs';
 
   let two: Two;
   let twoElement: HTMLDivElement;
@@ -674,74 +675,139 @@
     }
   });
 
-  function saveFile() {
-    const jsonString = JSON.stringify({ startPoint, lines, shapes });
+  async function saveFile() {
+    try {
+      const jsonString = JSON.stringify({ startPoint, lines, shapes }, null, 2);
+      
+      // Use Tauri's save dialog
+      const filePath = await save({
+        filters: [{
+          name: 'Pedro Pathing',
+          extensions: ['pp']
+        }],
+        defaultPath: 'trajectory.pp'
+      });
 
-    const blob = new Blob([jsonString], { type: "application/json" });
-
-    const linkObj = document.createElement("a");
-
-    const url = URL.createObjectURL(blob);
-
-    linkObj.href = url;
-    linkObj.download = "trajectory.pp";
-
-    document.body.appendChild(linkObj);
-
-    linkObj.click();
-
-    document.body.removeChild(linkObj);
-
-    URL.revokeObjectURL(url);
-  }
-
-  function loadFile(evt: Event) {
-    const elem = evt.target as HTMLInputElement;
-    const file = elem.files?.[0];
-
-    if (file) {
-      const reader = new FileReader();
-
-      reader.onload = function (e: ProgressEvent<FileReader>) {
-        try {
-          const result = e.target?.result as string;
-
-          const jsonObj: {
-            startPoint: Point;
-            lines: Line[];
-            shapes?: Shape[];
-          } = JSON.parse(result);
-
-          startPoint = jsonObj.startPoint;
-          lines = jsonObj.lines;
-          if (jsonObj.shapes) {
-            shapes = jsonObj.shapes;
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      };
-
-      reader.readAsText(file);
+      if (filePath) {
+        await writeTextFile(filePath, jsonString);
+        console.log('File saved successfully to:', filePath);
+      }
+    } catch (error) {
+      console.error('Error saving file:', error);
+      // Fallback to browser download if Tauri APIs are not available
+      const jsonString = JSON.stringify({ startPoint, lines, shapes });
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const linkObj = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      linkObj.href = url;
+      linkObj.download = "trajectory.pp";
+      document.body.appendChild(linkObj);
+      linkObj.click();
+      document.body.removeChild(linkObj);
+      URL.revokeObjectURL(url);
     }
   }
 
-  function loadRobot(evt: Event) {
-    const elem = evt.target as HTMLInputElement;
-    const file = elem.files?.[0];
+  async function loadFile(evt?: Event) {
+    try {
+      // Use Tauri's open dialog
+      const selected = await open({
+        filters: [{
+          name: 'Pedro Pathing',
+          extensions: ['pp', 'json']
+        }],
+        multiple: false
+      });
 
-    if (file && file.type === "image/png") {
-      const reader = new FileReader();
+      if (selected && typeof selected === 'string') {
+        const contents = await readTextFile(selected);
+        const jsonObj: {
+          startPoint: Point;
+          lines: Line[];
+          shapes?: Shape[];
+        } = JSON.parse(contents);
 
-      reader.onload = function (e: ProgressEvent<FileReader>) {
-        const result = e.target?.result as string;
-        localStorage.setItem('robot.png', result);
+        startPoint = jsonObj.startPoint;
+        lines = jsonObj.lines;
+        if (jsonObj.shapes) {
+          shapes = jsonObj.shapes;
+        }
+        console.log('File loaded successfully from:', selected);
+      }
+    } catch (error) {
+      console.error('Error loading file:', error);
+      // Fallback to file input if Tauri APIs are not available or if called from input
+      if (evt) {
+        const elem = evt.target as HTMLInputElement;
+        const file = elem.files?.[0];
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e: ProgressEvent<FileReader>) {
+            try {
+              const result = e.target?.result as string;
+              const jsonObj: {
+                startPoint: Point;
+                lines: Line[];
+                shapes?: Shape[];
+              } = JSON.parse(result);
+
+              startPoint = jsonObj.startPoint;
+              lines = jsonObj.lines;
+              if (jsonObj.shapes) {
+                shapes = jsonObj.shapes;
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          };
+          reader.readAsText(file);
+        }
+      }
+    }
+  }
+
+  async function loadRobot(evt?: Event) {
+    try {
+      // Use Tauri's open dialog
+      const selected = await open({
+        filters: [{
+          name: 'PNG Image',
+          extensions: ['png']
+        }],
+        multiple: false
+      });
+
+      if (selected && typeof selected === 'string') {
+        const fileData = await readFile(selected);
+        // Convert to base64 data URL
+        const base64 = btoa(
+          new Uint8Array(fileData).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        const dataUrl = `data:image/png;base64,${base64}`;
+        localStorage.setItem('robot.png', dataUrl);
         updateRobotImage();
-      };
+        console.log('Robot image loaded successfully from:', selected);
+      }
+    } catch (error) {
+      console.error('Error loading robot image:', error);
+      // Fallback to file input if Tauri APIs are not available or if called from input
+      if (evt) {
+        const elem = evt.target as HTMLInputElement;
+        const file = elem.files?.[0];
 
-      reader.readAsDataURL(file);
-    } else {
-      console.error("Invalid file type. Please upload a PNG file.");
+        if (file && file.type === "image/png") {
+          const reader = new FileReader();
+          reader.onload = function (e: ProgressEvent<FileReader>) {
+            const result = e.target?.result as string;
+            localStorage.setItem('robot.png', result);
+            updateRobotImage();
+          };
+          reader.readAsDataURL(file);
+        } else {
+          console.error("Invalid file type. Please upload a PNG file.");
+        }
+      }
     }
   }
 
