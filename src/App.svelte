@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as d3 from "d3";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import Two from "two.js";
   import type { Path } from "two.js/src/path";
   import type { Line as PathLine } from "two.js/src/shapes/line";
@@ -663,6 +663,20 @@
     two.renderer.domElement.addEventListener("mouseup", () => {
       isDown = false;
     });
+
+    // Handle window resize to update canvas dimensions
+    const handleResize = () => {
+      if (two) {
+        two.fit();
+      }
+    };
+    
+    window.addEventListener("resize", handleResize);
+
+    // Clean up on component destroy
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
   });
 
   document.addEventListener("keydown", function (evt) {
