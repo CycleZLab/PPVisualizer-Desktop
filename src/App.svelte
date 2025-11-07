@@ -49,21 +49,27 @@
 
   /**
    * Converter for X axis from inches to pixels.
+   * Updates when twoElement dimensions or resizeTrigger changes.
    */
-  $: x = d3
-    .scaleLinear()
-    .domain([0, 144])
-    .range([0, twoElement?.clientWidth ?? 144]),
+  $: {
     resizeTrigger; // Depend on resizeTrigger to update on window resize
+    x = d3
+      .scaleLinear()
+      .domain([0, 144])
+      .range([0, twoElement?.clientWidth ?? 144]);
+  }
 
   /**
    * Converter for Y axis from inches to pixels.
+   * Updates when twoElement dimensions or resizeTrigger changes.
    */
-  $: y = d3
-    .scaleLinear()
-    .domain([0, 144])
-    .range([twoElement?.clientHeight ?? 144, 0]),
+  $: {
     resizeTrigger; // Depend on resizeTrigger to update on window resize
+    y = d3
+      .scaleLinear()
+      .domain([0, 144])
+      .range([twoElement?.clientHeight ?? 144, 0]);
+  }
 
   let lineGroup = new Two.Group();
   lineGroup.id = "line-group";
@@ -608,6 +614,14 @@
         return result;
     }
 
+  // Handle window resize to update canvas dimensions
+  const handleResize = () => {
+    if (two) {
+      two.fit();
+      resizeTrigger++; // Trigger reactive updates
+    }
+  };
+
   onMount(() => {
     two = new Two({
       fitted: true,
@@ -667,20 +681,11 @@
       isDown = false;
     });
 
-    // Handle window resize to update canvas dimensions
-    const handleResize = () => {
-      if (two) {
-        two.fit();
-        resizeTrigger++; // Trigger reactive updates
-      }
-    };
-    
     window.addEventListener("resize", handleResize);
+  });
 
-    // Clean up on component destroy
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+  onDestroy(() => {
+    window.removeEventListener("resize", handleResize);
   });
 
   document.addEventListener("keydown", function (evt) {
