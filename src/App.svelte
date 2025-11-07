@@ -52,7 +52,7 @@
    * Updates when twoElement dimensions or resizeTrigger changes.
    */
   $: {
-    resizeTrigger; // Depend on resizeTrigger to update on window resize
+    void resizeTrigger; // Force reactive update when resizeTrigger changes
     x = d3
       .scaleLinear()
       .domain([0, 144])
@@ -64,7 +64,7 @@
    * Updates when twoElement dimensions or resizeTrigger changes.
    */
   $: {
-    resizeTrigger; // Depend on resizeTrigger to update on window resize
+    void resizeTrigger; // Force reactive update when resizeTrigger changes
     y = d3
       .scaleLinear()
       .domain([0, 144])
