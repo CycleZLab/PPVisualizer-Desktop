@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as d3 from "d3";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import Two from "two.js";
   import type { Path } from "two.js/src/path";
   import type { Line as PathLine } from "two.js/src/shapes/line";
@@ -23,6 +23,7 @@
 
   let two: Two;
   let twoElement: HTMLDivElement;
+  let resizeTrigger = 0; // Used to trigger reactive updates on window resize
 
   let pointRadius = 1.15;
   let lineWidth = 0.57;
@@ -48,19 +49,27 @@
 
   /**
    * Converter for X axis from inches to pixels.
+   * Updates when twoElement dimensions or resizeTrigger changes.
    */
-  $: x = d3
-    .scaleLinear()
-    .domain([0, 144])
-    .range([0, twoElement?.clientWidth ?? 144]);
+  $: {
+    void resizeTrigger; // Force reactive update when resizeTrigger changes
+    x = d3
+      .scaleLinear()
+      .domain([0, 144])
+      .range([0, twoElement?.clientWidth ?? 144]);
+  }
 
   /**
    * Converter for Y axis from inches to pixels.
+   * Updates when twoElement dimensions or resizeTrigger changes.
    */
-  $: y = d3
-    .scaleLinear()
-    .domain([0, 144])
-    .range([twoElement?.clientHeight ?? 144, 0]);
+  $: {
+    void resizeTrigger; // Force reactive update when resizeTrigger changes
+    y = d3
+      .scaleLinear()
+      .domain([0, 144])
+      .range([twoElement?.clientHeight ?? 144, 0]);
+  }
 
   let lineGroup = new Two.Group();
   lineGroup.id = "line-group";
@@ -605,6 +614,14 @@
         return result;
     }
 
+  // Handle window resize to update canvas dimensions
+  const handleResize = () => {
+    if (two) {
+      two.fit();
+      resizeTrigger++; // Trigger reactive updates
+    }
+  };
+
   onMount(() => {
     two = new Two({
       fitted: true,
@@ -663,6 +680,12 @@
     two.renderer.domElement.addEventListener("mouseup", () => {
       isDown = false;
     });
+
+    window.addEventListener("resize", handleResize);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener("resize", handleResize);
   });
 
   document.addEventListener("keydown", function (evt) {
